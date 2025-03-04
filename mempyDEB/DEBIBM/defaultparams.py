@@ -1,6 +1,6 @@
 from collections import namedtuple
 
-Params = namedtuple("Params", "glb spc")
+Params = namedtuple("Params", "glb spc alg")
 
 defaultparams_DEBIBM = Params(
     { # global parameters
@@ -51,5 +51,26 @@ defaultparams_DEBIBM = Params(
     'kD_h' : .1, # dominant rate constant
     'ED50_h' : 2, # median effective damage
     'beta_h' : 1. # DRC slope
+    },
+    {# algea parameters
+    'tmax' : 30, # max time
+    'D'    : 0.5, # dilution rate
+    'T'     : 24,  # temperature
+    'T_min' : 0,  # minimum temperature
+    'T_max' : 35,  # maximum temperature
+    'T_opt' : 27, # optimum temperature
+    'R0'    : 0.36, # nutrient concentration in culture medium
+    'C_in'  : 0.0, # toxicant concentration in fresh medium
+    'I'     : 100, # light intensity
+    'I_opt' : 120,
+    'mu_max' : 1.7380, # max. growth rate
+    'm_max'  : 0.0500, # max. mortality rate
+    'v_max'  : 0.0520, # max. P uptake
+    'k' : .5,     # half saturation constant for P uptake
+    'q_min' : 0.0011,
+    'q_max' : 0.0144,
+    'slope' : 2,
+    'EC50'  : 150,
+    'k_s'   : 0.0680  
     }
 )

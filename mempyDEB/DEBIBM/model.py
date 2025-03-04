@@ -95,6 +95,28 @@ spc = { # animal parameters
     'beta_h' : 1. # DRC slope
     }
 
+alg = {# algea parameters
+    'tmax' : 30, # max time
+    'D'    : 0.5, # dilution rate
+    'T'     : 24,  # temperature
+    'T_min' : 0,  # minimum temperature
+    'T_max' : 35,  # maximum temperature
+    'T_opt' : 27, # optimum temperature
+    'R0'    : 0.36, # nutrient concentration in culture medium
+    'C_in'  : 0.0, # toxicant concentration in fresh medium
+    'I'     : 100, # light intensity
+    'I_opt' : 120,
+    'mu_max' : 1.7380, # max. growth rate
+    'm_max'  : 0.0500, # max. mortality rate
+    'v_max'  : 0.0520, # max. P uptake
+    'k' : .5,     # half saturation constant for P uptake
+    'q_min' : 0.0011,
+    'q_max' : 0.0144,
+    'slope' : 2,
+    'EC50'  : 150,
+    'k_s'   : 0.0680 
+} 
+
 #%%
 
 def deftruncnorm(mean, cv, l, u):
@@ -601,3 +623,10 @@ class IBM(mesa.Model):
             self.schedule.remove(a) # remove animal from scheduler
             self.deathlist.remove(a) # remove animal from death list
             self.num_agents -= 1
+
+
+# algea model
+
+# light dependence
+def Ifunc(I, I_opt):
+    return (I/I_opt)*np.exp(1-(I/I_opt))

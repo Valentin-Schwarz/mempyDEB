@@ -630,3 +630,12 @@ class IBM(mesa.Model):
 # light dependence
 def Ifunc(I, I_opt):
     return (I/I_opt)*np.exp(1-(I/I_opt))
+
+# # temperature dependence
+def Tfunc(T, T_min, T_max, T_opt):
+    if T < T_opt:
+        T_x = T_min
+    else:
+        T_x = T_max
+    return np.exp(-2.3*np.power((T-T_opt)/(T_x-T_opt), 2))
+Tfunc = np.vectorize(Tfunc)

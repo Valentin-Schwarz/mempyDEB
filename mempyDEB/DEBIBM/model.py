@@ -54,7 +54,28 @@ glb = { # global parameters
     'V_patch':  0.5, # volume of a single patch
     'Xdot_in': 1250, # resource input rate
     'kX_out' : 0.1, # daily resource outflow rate
-    'C_W' : 0. # chemical stressor concentration
+    'C_W' : 0., # chemical stressor concentration
+
+    # algea parameters
+    'tmax' : 30, # max time
+    'D'    : 0.5, # dilution rate
+    'T'     : 24,  # temperature
+    'T_min' : 0,  # minimum temperature
+    'T_max' : 35,  # maximum temperature
+    'T_opt' : 27, # optimum temperature
+    'R0'    : 0.36, # nutrient concentration in culture medium
+    'C_in'  : 0.0, # toxicant concentration in fresh medium
+    'I'     : 100, # light intensity
+    'I_opt' : 120,
+    'mu_max' : 1.7380, # max. growth rate
+    'm_max'  : 0.0500, # max. mortality rate
+    'v_max'  : 0.0520, # max. P uptake
+    'k' : .5,     # half saturation constant for P uptake
+    'q_min' : 0.0011,
+    'q_max' : 0.0144,
+    'slope' : 2,
+    'EC50'  : 150,
+    'k_s'   : 0.0680 
 
     }
 
@@ -95,28 +116,6 @@ spc = { # animal parameters
     'ED50_h' : 2, # median effective damage
     'beta_h' : 1. # DRC slope
     }
-
-alg = {# algea parameters
-    'tmax' : 30, # max time
-    'D'    : 0.5, # dilution rate
-    'T'     : 24,  # temperature
-    'T_min' : 0,  # minimum temperature
-    'T_max' : 35,  # maximum temperature
-    'T_opt' : 27, # optimum temperature
-    'R0'    : 0.36, # nutrient concentration in culture medium
-    'C_in'  : 0.0, # toxicant concentration in fresh medium
-    'I'     : 100, # light intensity
-    'I_opt' : 120,
-    'mu_max' : 1.7380, # max. growth rate
-    'm_max'  : 0.0500, # max. mortality rate
-    'v_max'  : 0.0520, # max. P uptake
-    'k' : .5,     # half saturation constant for P uptake
-    'q_min' : 0.0011,
-    'q_max' : 0.0144,
-    'slope' : 2,
-    'EC50'  : 150,
-    'k_s'   : 0.0680 
-} 
 
 #%%
 
@@ -590,7 +589,7 @@ class IBM(mesa.Model):
                 }, 
             agent_reporters = agent_reporterdict
         )
-
+    
     def update_resource(self):
         """
         Calculate resource inflow and outflow rate and update biomass
@@ -630,83 +629,84 @@ class IBM(mesa.Model):
 
 # light dependence
 def Ifunc(I, I_opt):
-    return (I/I_opt)*np.exp(1-(I/I_opt))
+        return (I/I_opt)*np.exp(1-(I/I_opt))
 
 #temperature dependence
 def Tfunc(T, T_min, T_max, T_opt):
-    if T < T_opt:
-        T_x = T_min
-    else:
-        T_x = T_max
-    return np.exp(-2.3*np.power((T-T_opt)/(T_x-T_opt), 2))
+        if T < T_opt:
+            T_x = T_min
+        else:
+            T_x = T_max
+        return np.exp(-2.3*np.power((T-T_opt)/(T_x-T_opt), 2))
 Tfunc = np.vectorize(Tfunc)
 
 ## nutrient dependence
 def Qfunc(Q, q_min, A):
 
-    fract = (Q/(q_min*A))-1
+        fract = (Q/(q_min*A))-1
 
-    return 1 - np.exp(-np.log2(fract))
+        return 1 - np.exp(-np.log2(fract))
 
 # nutrient and quota dependence
 def QPfunc(A, Q, P, q_min, q_max, k_s):
-    Q_depend = (q_max * A - Q) / (q_max - q_min)
-    P_depend = P / (k_s + P)
-    return Q_depend * P_depend
+        Q_depend = (q_max * A - Q) / (q_max - q_min)
+        P_depend = P / (k_s + P)
+        return Q_depend * P_depend
 
 # dose-response
 def Cfunc(C, slope, EC50):
-    return 1 - (1 / (1 + np.exp(-slope * (np.log(C) - np.log(EC50)) )))
+        return 1 - (1 / (1 + np.exp(-slope * (np.log(C) - np.log(EC50)) )))
 
 # function to solve the AQPC model
-def solve_AQPC(tmax = 30, # max time
-               D    = 0.5, # dilution rate
-               T     = 24,  # temperature
-               T_min = 0,  # minimum temperature
-               T_max = 35,  # maximum temperature
-               T_opt = 27, # optimum temperature
-               R0    = 0.36, # nutrient concentration in culture medium
-               C_in  = 0.0, # toxicant concentration in fresh medium
-               I     = 100, # light intensity
-               I_opt = 120,
-               mu_max = 1.7380, # max. growth rate
-               m_max  = 0.0500, # max. mortality rate
-               v_max  = 0.0520, # max. P uptake
-               k = .5,     # half saturation constant for P uptake
-               q_min = 0.0011,
-               q_max = 0.0144,
-               slope = 2,
-               EC50  = 150,
-               k_s   = 0.0680):
+def solve_AQPC(
+            tmax = 30, # max time
+            D    = 0.5, # dilution rate
+            T     = 24,  # temperature
+            T_min = 0,  # minimum temperature
+            T_max = 35,  # maximum temperature
+            T_opt = 27, # optimum temperature
+            R0    = 0.36, # nutrient concentration in culture medium
+            C_in  = 0.0, # toxicant concentration in fresh medium
+            I     = 100, # light intensity
+            I_opt = 120,
+            mu_max = 1.7380, # max. growth rate
+            m_max  = 0.0500, # max. mortality rate
+            v_max  = 0.0520, # max. P uptake
+            k = .5,     # half saturation constant for P uptake
+            q_min = 0.0011,
+            q_max = 0.0144,
+            slope = 2,
+            EC50  = 150,
+            k_s   = 0.0680):
 
-    """solve the AQPC model, given parameters"""
+        """solve the AQPC model, given parameters"""
 
     # Convert strings to numbers
 
-    time = np.arange(start=0, stop=tmax, step=0.5)
+        time = np.arange(start=0, stop=tmax, step=0.5)
 
-    fT = Tfunc(T, T_min, T_max, T_opt)
-    fI = Ifunc(I, I_opt)
+        fT = Tfunc(T, T_min, T_max, T_opt)
+        fI = Ifunc(I, I_opt)
 
     # define the ODE system
-    def AQPC_deriv(AQPC, t0):
-        """compute the derivative of the AQPC model"""
-        A, Q, P, C = AQPC # unpack state vars
+        def AQPC_deriv(AQPC, t0):
+            """compute the derivative of the AQPC model"""
+            A, Q, P, C = AQPC # unpack state vars
 
-        fQ  = Qfunc(Q, q_min, A)
-        fQP = QPfunc(A, Q, P, q_min, q_max, k_s)
-        fC  = Cfunc(C, slope, EC50)
+            fQ  = Qfunc(Q, q_min, A)
+            fQP = QPfunc(A, Q, P, q_min, q_max, k_s)
+            fC  = Cfunc(C, slope, EC50)
 
-        return [((mu_max * fT * fI * fQ * fC) - m_max - D) * A,   # dA
-              v_max * fQP * A - (m_max + D) * Q,              # dQ
-              D * R0 - D * P + m_max * Q - (v_max * fQP * A), # dP
-              C_in * D - k * C - D * C]                       # dC
+            return [((mu_max * fT * fI * fQ * fC) - m_max - D) * A,   # dA
+                  v_max * fQP * A - (m_max + D) * Q,              # dQ
+                  D * R0 - D * P + m_max * Q - (v_max * fQP * A), # dP
+                  C_in * D - k * C - D * C]                       # dC
 
     # solve the model
-    solution = odeint(AQPC_deriv, (2, .1, 2, 0), time)
-    solution = np.nan_to_num(solution)
+        solution = odeint(AQPC_deriv, (2, .1, 2, 0), time)
+        solution = np.nan_to_num(solution)
     # collect data in dataframe
-    model_df = pd.DataFrame({
+        model_df = pd.DataFrame({
       'tday': time, # time in days
       'A': solution[:,0],   # population density
       'Q': solution[:,1],   # nutrient quota
@@ -714,7 +714,7 @@ def solve_AQPC(tmax = 30, # max time
       'C': solution[:,3]    # toxicant concentration
     })
 
-    return model_df
+        return model_df
 
 out = solve_AQPC()
 

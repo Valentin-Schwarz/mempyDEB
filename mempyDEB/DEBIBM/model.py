@@ -598,67 +598,32 @@ class IBM(mesa.Model):
         Xdot_out = self.kX_out * self.X # the outflow rate depends on the current biomass (the inflow rate is constant)
         self.X = np.maximum(0, self.X + (self.Xdot_in - Xdot_out) / self.tres)
 
-    def step(self):
-        """
-        Schedule for the entire IBM.
-        """
-
-        self.t_day = self.schedule.steps / self.tres # update time in days
-        self.deathlist = [] # reset the list of individuals to be killed at this timestep
-
-
-        self.update_resource() # update the resource (food) population
-        self.schedule.step() # execute the steps for animals
-
-        # data es recorded *after* the step is executed, but *before* agents are killed
-        # recording data can cost a lot of computation time, 
-        # so we only do it in the specified intervals
-        if np.isclose((self.t_day % self.data_collection_interval), 0, rtol = 1e-3): 
-            self.datacollector.collect(self)
-
-        # NOTE: If a spactial grid is ever added to the model, 
-        # the agents also have to be removed from the grid here
-        # (in addition from being removed from the schedule)
-        for a in self.deathlist: # for all animals to be killed
-            self.schedule.remove(a) # remove animal from scheduler
-            self.deathlist.remove(a) # remove animal from death list
-            self.num_agents -= 1
-
-
-# algea model
-
-# light dependence
-def Ifunc(I, I_opt):
+    def Ifunc(I, I_opt): # Lichtintensitätsabhängigkeit der Algen
         return (I/I_opt)*np.exp(1-(I/I_opt))
-
-#temperature dependence
-def Tfunc(T, T_min, T_max, T_opt):
+    
+    def Tfunc(T, T_min, T_max, T_opt): # Temperaturabhängigkeit der Algen
         if T < T_opt:
             T_x = T_min
         else:
             T_x = T_max
         return np.exp(-2.3*np.power((T-T_opt)/(T_x-T_opt), 2))
-Tfunc = np.vectorize(Tfunc)
+    Tfunc = np.vectorize(Tfunc)
 
-## nutrient dependence
-def Qfunc(Q, q_min, A):
+    def Qfunc(Q, q_min, A): # Nutrient dependence
 
         fract = (Q/(q_min*A))-1
 
         return 1 - np.exp(-np.log2(fract))
-
-# nutrient and quota dependence
-def QPfunc(A, Q, P, q_min, q_max, k_s):
+    
+    def QPfunc(A, Q, P, q_min, q_max, k_s): # nutrient and quota dependence
         Q_depend = (q_max * A - Q) / (q_max - q_min)
         P_depend = P / (k_s + P)
         return Q_depend * P_depend
-
-# dose-response
-def Cfunc(C, slope, EC50):
+    
+    def Cfunc(C, slope, EC50): # dose-response
         return 1 - (1 / (1 + np.exp(-slope * (np.log(C) - np.log(EC50)) )))
-
-# function to solve the AQPC model
-def solve_AQPC(
+    
+    def solve_AQPC(
             tmax = 30, # max time
             D    = 0.5, # dilution rate
             T     = 24,  # temperature
@@ -716,5 +681,32 @@ def solve_AQPC(
 
         return model_df
 
-out = solve_AQPC()
+    out = solve_AQPC()
 
+
+    def step(self):
+        """
+        Schedule for the entire IBM.
+        """
+
+        self.t_day = self.schedule.steps / self.tres # update time in days
+        self.deathlist = [] # reset the list of individuals to be killed at this timestep
+
+
+        self.update_resource() # update the resource (food) population
+        self.schedule.step() # execute the steps for animals
+
+        # data es recorded *after* the step is executed, but *before* agents are killed
+        # recording data can cost a lot of computation time, 
+        # so we only do it in the specified intervals
+        if np.isclose((self.t_day % self.data_collection_interval), 0, rtol = 1e-3): 
+            self.datacollector.collect(self)
+
+        # NOTE: If a spactial grid is ever added to the model, 
+        # the agents also have to be removed from the grid here
+        # (in addition from being removed from the schedule)
+        for a in self.deathlist: # for all animals to be killed
+            self.schedule.remove(a) # remove animal from scheduler
+            self.deathlist.remove(a) # remove animal from death list
+            self.num_agents -= 1
+ 

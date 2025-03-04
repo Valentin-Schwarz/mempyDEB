@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set(context = "notebook")
 from scipy.integrate import solve_ivp
+from scipy.integrate import odeint
 from scipy import stats
 from collections import namedtuple
 import mesa
@@ -631,7 +632,7 @@ class IBM(mesa.Model):
 def Ifunc(I, I_opt):
     return (I/I_opt)*np.exp(1-(I/I_opt))
 
-# # temperature dependence
+#temperature dependence
 def Tfunc(T, T_min, T_max, T_opt):
     if T < T_opt:
         T_x = T_min
@@ -639,3 +640,81 @@ def Tfunc(T, T_min, T_max, T_opt):
         T_x = T_max
     return np.exp(-2.3*np.power((T-T_opt)/(T_x-T_opt), 2))
 Tfunc = np.vectorize(Tfunc)
+
+## nutrient dependence
+def Qfunc(Q, q_min, A):
+
+    fract = (Q/(q_min*A))-1
+
+    return 1 - np.exp(-np.log2(fract))
+
+# nutrient and quota dependence
+def QPfunc(A, Q, P, q_min, q_max, k_s):
+    Q_depend = (q_max * A - Q) / (q_max - q_min)
+    P_depend = P / (k_s + P)
+    return Q_depend * P_depend
+
+# dose-response
+def Cfunc(C, slope, EC50):
+    return 1 - (1 / (1 + np.exp(-slope * (np.log(C) - np.log(EC50)) )))
+
+# function to solve the AQPC model
+def solve_AQPC(tmax = 30, # max time
+               D    = 0.5, # dilution rate
+               T     = 24,  # temperature
+               T_min = 0,  # minimum temperature
+               T_max = 35,  # maximum temperature
+               T_opt = 27, # optimum temperature
+               R0    = 0.36, # nutrient concentration in culture medium
+               C_in  = 0.0, # toxicant concentration in fresh medium
+               I     = 100, # light intensity
+               I_opt = 120,
+               mu_max = 1.7380, # max. growth rate
+               m_max  = 0.0500, # max. mortality rate
+               v_max  = 0.0520, # max. P uptake
+               k = .5,     # half saturation constant for P uptake
+               q_min = 0.0011,
+               q_max = 0.0144,
+               slope = 2,
+               EC50  = 150,
+               k_s   = 0.0680):
+
+    """solve the AQPC model, given parameters"""
+
+    # Convert strings to numbers
+
+    time = np.arange(start=0, stop=tmax, step=0.5)
+
+    fT = Tfunc(T, T_min, T_max, T_opt)
+    fI = Ifunc(I, I_opt)
+
+    # define the ODE system
+    def AQPC_deriv(AQPC, t0):
+        """compute the derivative of the AQPC model"""
+        A, Q, P, C = AQPC # unpack state vars
+
+        fQ  = Qfunc(Q, q_min, A)
+        fQP = QPfunc(A, Q, P, q_min, q_max, k_s)
+        fC  = Cfunc(C, slope, EC50)
+
+        return [((mu_max * fT * fI * fQ * fC) - m_max - D) * A,   # dA
+              v_max * fQP * A - (m_max + D) * Q,              # dQ
+              D * R0 - D * P + m_max * Q - (v_max * fQP * A), # dP
+              C_in * D - k * C - D * C]                       # dC
+
+    # solve the model
+    solution = odeint(AQPC_deriv, (2, .1, 2, 0), time)
+    solution = np.nan_to_num(solution)
+    # collect data in dataframe
+    model_df = pd.DataFrame({
+      'tday': time, # time in days
+      'A': solution[:,0],   # population density
+      'Q': solution[:,1],   # nutrient quota
+      'P': solution[:,2],   # (external) phosphorus
+      'C': solution[:,3]    # toxicant concentration
+    })
+
+    return model_df
+
+out = solve_AQPC()
+

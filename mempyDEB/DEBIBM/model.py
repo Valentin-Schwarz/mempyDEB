@@ -590,13 +590,8 @@ class IBM(mesa.Model):
             agent_reporters = agent_reporterdict
         )
     
-    def update_resource(self):
-        """
-        Calculate resource inflow and outflow rate and update biomass
-        """
-
-        Xdot_out = self.kX_out * self.X # the outflow rate depends on the current biomass (the inflow rate is constant)
-        self.X = np.maximum(0, self.X + (self.Xdot_in - Xdot_out) / self.tres)
+    
+        
 
     def Ifunc(self, I, I_opt): # Lichtintensitätsabhängigkeit der Algen
         return (I/I_opt)*np.exp(1-(I/I_opt))
@@ -623,8 +618,8 @@ class IBM(mesa.Model):
     def Cfunc(self, C, slope, EC50): # dose-response
         return 1 - (1 / (1 + np.exp(-slope * (np.log(C) - np.log(EC50)) )))
     
-    def solve_AQPC(Ifunc, Tfunc, Qfunc, QPfunc, Cfunc,
-            tmax = 30, # max time
+    def solve_AQPC(self, Ifunc, Tfunc, Qfunc, QPfunc, Cfunc,
+            tmax = 1, # max time
             D    = 0.5, # dilution rate
             T     = 24,  # temperature
             T_min = 0,  # minimum temperature
@@ -681,8 +676,19 @@ class IBM(mesa.Model):
 
         return model_df
 
-    out = solve_AQPC()
+    algea_solution = solve_AQPC()
 
+    def update_resource(self, solve_AQPC):
+        
+        """
+        Calculate resource inflow and outflow rate and update biomass
+        """
+
+        algea_solution = self.solve_AQPC()
+        A = algea_solution.A
+
+        Xdot_out = self.kX_out * self.X # the outflow rate depends on the current biomass (the inflow rate is constant)
+        self.X = np.maximum(0, self.X + (A - Xdot_out) / self.tres)
 
     def step(self):
         """

@@ -1,5 +1,7 @@
 from collections import namedtuple
 
+print("using local version")
+
 Params = namedtuple("Params", "glb spc")
 
 defaultparams_DEBIBM = Params(

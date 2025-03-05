@@ -615,15 +615,15 @@ class IBM(mesa.Model):
 
         return 1 - np.exp(-np.log2(fract))
     
-    def QPfunc(self, A, Q, P, q_min, q_max, k_s): # nutrient and quota dependence
+    def QPfunc(self, A, Q, P, q_min, q_max, k_s, V_Patch): # nutrient and quota dependence
         Q_depend = (q_max * A - Q) / (q_max - q_min)
-        P_depend = P / (k_s + P)
+        P_depend = P*V_Patch / (k_s + P*V_Patch)
         return Q_depend * P_depend
     
     def Cfunc(self, C, slope, EC50): # dose-response
         return 1 - (1 / (1 + np.exp(-slope * (np.log(C) - np.log(EC50)) )))
     
-    def solve_AQPC(
+    def solve_AQPC(Ifunc, Tfunc, Qfunc, QPfunc, Cfunc,
             tmax = 30, # max time
             D    = 0.5, # dilution rate
             T     = 24,  # temperature

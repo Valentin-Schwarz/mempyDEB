@@ -1,2 +1,6 @@
 __pycache__
+<<<<<<< HEAD
 *.egg-info
+=======
+*.egg-info
+>>>>>>> cd5a3744ba7f61467afd5769fae141d59c53a8df

@@ -609,12 +609,11 @@ class IBM(mesa.Model):
         else:
             T_x = T_max
         return np.exp(-2.3*np.power((T-T_opt)/(T_x-T_opt), 2))
-    Tfunc = np.vectorize(Tfunc)
+    Tfunc = 1 #np.vectorize(Tfunc)
 
     def Qfunc(self): # Nutrient dependence
 
-    def Qfunc(self, Q, q_min, X): # Nutrient dependence
-        fract = (Q/(q_min*X))-1
+        fract = (self.Q/(self.q_min*self.X))-1
         return 1 - np.exp(-np.log2(fract))
     
     def QPfunc(self): # nutrient and quota dependence
@@ -622,8 +621,8 @@ class IBM(mesa.Model):
         P_depend = self.P*self.V_patch / (self.k_s + self.P*self.V_patch)
         return Q_depend * P_depend
     
-    def Cfunc(self, C_w, slope, EC50): # dose-response
-        return (1 / (1 +  (C_w / EC50)**slope ))
+    def Cfunc(self): # dose-response
+        return (1 / (1 +  (self.C_W / self.EC50)**self.slope ))
 
     #algea_solution = self.solve_AQPC(Ifunc=Ifunc, Tfunc=Tfunc, Qfunc=Qfunc, QPfunc=QPfunc, Cfunc=Cfunc)
 
@@ -635,9 +634,9 @@ class IBM(mesa.Model):
         self.fT = 1 #Tfunc(T, T_min, T_max, T_opt)
         self.fI = 1 #Ifunc(I, I_opt)
 
-        fQ  = self.Qfunc(self.Q, glb['q_min'], self.X)
-        fQP = self.QPfunc(self.X, self.Q, self.P, glb['q_min'], glb['q_max'], glb['k_s'], glb['V_patch'] )
-        fC  = self.Cfunc(glb['C_W'], glb['slope'], glb['EC50'])
+        fQ  = self.Qfunc()
+        fQP = self.QPfunc()
+        fC  = self.Cfunc()
 
         #algea_solution = self.solve_AQPC()
         self.Xdot = (glb['mu_max'] * self.fT * self.fI * fQ * fC) - (glb['m_max'] - glb['D']) * self.X #Xdot = A 

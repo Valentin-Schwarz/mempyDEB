@@ -602,11 +602,11 @@ class IBM(mesa.Model):
         else:
             T_x = T_max
         return np.exp(-2.3*np.power((T-T_opt)/(T_x-T_opt), 2))
-    Tfunc = np.vectorize(Tfunc)
+    Tfunc = 1 #np.vectorize(Tfunc)
 
-    def Qfunc(self, Q, q_min, A): # Nutrient dependence
+    def Qfunc(self, Q, q_min, X): # Nutrient dependence
 
-        fract = (Q/(q_min*A))-1
+        fract = (Q/(q_min*X))-1
 
         return 1 - np.exp(-np.log2(fract))
     
@@ -618,7 +618,7 @@ class IBM(mesa.Model):
     def Cfunc(self, C, slope, EC50): # dose-response
         return 1 - (1 / (1 + np.exp(-slope * (np.log(C) - np.log(EC50)) )))
     
-    def solve_AQPC(self, Ifunc, Tfunc, Qfunc, QPfunc, Cfunc,
+    def solve_AQPC(Ifunc, Tfunc, Qfunc, QPfunc, Cfunc,
             tmax = 1, # max time
             D    = 0.5, # dilution rate
             T     = 24,  # temperature
@@ -645,21 +645,21 @@ class IBM(mesa.Model):
 
         time = np.arange(start=0, stop=tmax, step=0.5)
 
-        fT = Tfunc(T, T_min, T_max, T_opt)
-        fI = Ifunc(I, I_opt)
+        fT = 1 #Tfunc(T, T_min, T_max, T_opt)
+        fI = 1 #Ifunc(I, I_opt)
 
     # define the ODE system
         def AQPC_deriv(AQPC, t0):
             """compute the derivative of the AQPC model"""
-            A, Q, P, C = AQPC # unpack state vars
+            X, Q, P, C = AQPC # unpack state vars
 
-            fQ  = Qfunc(Q, q_min, A)
-            fQP = QPfunc(A, Q, P, q_min, q_max, k_s)
+            fQ  = Qfunc(Q, q_min, X)
+            fQP = QPfunc(X, Q, P, q_min, q_max, k_s)
             fC  = Cfunc(C, slope, EC50)
 
-            return [((mu_max * fT * fI * fQ * fC) - m_max - D) * A,   # dA
-                  v_max * fQP * A - (m_max + D) * Q,              # dQ
-                  D * R0 - D * P + m_max * Q - (v_max * fQP * A), # dP
+            return [((mu_max * fT * fI * fQ * fC) - m_max - D) * X,   # dA
+                  v_max * fQP * X - (m_max + D) * Q,              # dQ
+                  D * R0 - D * P + m_max * Q - (v_max * fQP * X), # dP
                   C_in * D - k * C - D * C]                       # dC
 
     # solve the model
@@ -676,7 +676,7 @@ class IBM(mesa.Model):
 
         return model_df
 
-    algea_solution = solve_AQPC()
+    algea_solution = solve_AQPC(Ifunc=Ifunc, Tfunc=Tfunc, Qfunc=Qfunc, QPfunc=QPfunc, Cfunc=Cfunc)
 
     def update_resource(self, solve_AQPC):
         
@@ -685,10 +685,10 @@ class IBM(mesa.Model):
         """
 
         algea_solution = self.solve_AQPC()
-        A = algea_solution.A
+        X = algea_solution.A
 
         Xdot_out = self.kX_out * self.X # the outflow rate depends on the current biomass (the inflow rate is constant)
-        self.X = np.maximum(0, self.X + (A - Xdot_out) / self.tres)
+        self.X = np.maximum(0, self.X + (X - Xdot_out) / self.tres)
 
     def step(self):
         """

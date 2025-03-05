@@ -57,7 +57,7 @@ glb = { # global parameters
     'C_W' : 0., # chemical stressor concentration
 
     # algea parameters
-    'tmax' : 30, # max time
+    'tmax' : 1, # max time
     'D'    : 0.5, # dilution rate
     'T'     : 24,  # temperature
     'T_min' : 0,  # minimum temperature
@@ -522,7 +522,12 @@ class IBM(mesa.Model):
         self.num_agents = 0
         self.unique_id_count = 0
         self.t_day = 0
-        self.X = 0.
+        self.X = 0.1
+        self.Q = 0.01
+        self.P = 2
+        self.C = 0
+
+    
 
         # keeping track of different causes of mortality (cumulative counts)
         self.aging_mortality = 0
@@ -581,6 +586,8 @@ class IBM(mesa.Model):
             model_reporters = { # on the model level
                 't_day' : 't_day', # time in days
                 'X' : 'X', # resource biomass
+                'Q' : 'Q',
+                'P' : 'P',
                 'N_tot' : 'num_agents', # the total number of animals
                 'M_tot' : get_M_tot,  # the total biomass
                 'aging_mortality' : 'aging_mortality',
@@ -602,48 +609,52 @@ class IBM(mesa.Model):
         else:
             T_x = T_max
         return np.exp(-2.3*np.power((T-T_opt)/(T_x-T_opt), 2))
-    Tfunc = 1 #np.vectorize(Tfunc)
+    Tfunc = np.vectorize(Tfunc)
 
-    def Qfunc(self, Q, q_min, X): # Nutrient dependence
+    def Qfunc(self): # Nutrient dependence
 
-        fract = (Q/(q_min*X))-1
+        fract = (self.Q/(self.q_min*self.X))-1
 
+        
         return 1 - np.exp(-np.log2(fract))
     
-    def QPfunc(self, A, Q, P, q_min, q_max, k_s, V_Patch): # nutrient and quota dependence
-        Q_depend = (q_max * A - Q) / (q_max - q_min)
-        P_depend = P*V_Patch / (k_s + P*V_Patch)
+    def QPfunc(self): # nutrient and quota dependence
+        Q_depend = (self.q_max * self.X - self.Q) / (self.q_max - self.q_min)
+        P_depend = self.P*self.V_patch / (self.k_s + self.P*self.V_patch)
         return Q_depend * P_depend
     
-    def Cfunc(self, C, slope, EC50): # dose-response
-        return 1 - (1 / (1 + np.exp(-slope * (np.log(C) - np.log(EC50)) )))
+    def Cfunc(self): # dose-response
+        
+        return (1 / (1 + (self.C_W/self.EC50)**self.slope))
     
-    def solve_AQPC(Ifunc, Tfunc, Qfunc, QPfunc, Cfunc,
-            tmax = 1, # max time
-            D    = 0.5, # dilution rate
-            T     = 24,  # temperature
-            T_min = 0,  # minimum temperature
-            T_max = 35,  # maximum temperature
-            T_opt = 27, # optimum temperature
-            R0    = 0.36, # nutrient concentration in culture medium
-            C_in  = 0.0, # toxicant concentration in fresh medium
-            I     = 100, # light intensity
-            I_opt = 120,
-            mu_max = 1.7380, # max. growth rate
-            m_max  = 0.0500, # max. mortality rate
-            v_max  = 0.0520, # max. P uptake
-            k = .5,     # half saturation constant for P uptake
-            q_min = 0.0011,
-            q_max = 0.0144,
-            slope = 2,
-            EC50  = 150,
-            k_s   = 0.0680):
+
+    
+    #def solve_AQPC(self, Ifunc, Tfunc, Qfunc, QPfunc, Cfunc,
+    #        tmax = 1, # max time
+    #        D    = 0.5, # dilution rate
+    #        T     = 24,  # temperature
+    #        T_min = 0,  # minimum temperature
+    #        T_max = 35,  # maximum temperature
+    #        T_opt = 27, # optimum temperature
+    #        R0    = 0.36, # nutrient concentration in culture medium
+    #        C_in  = 0.0, # toxicant concentration in fresh medium
+    #        I     = 100, # light intensity
+    #        I_opt = 120,
+    #        mu_max = 1.7380, # max. growth rate
+    #        m_max  = 0.0500, # max. mortality rate
+    #        v_max  = 0.0520, # max. P uptake
+    #        k = .5,     # half saturation constant for P uptake
+    #        q_min = 0.0011,
+    #        q_max = 0.0144,
+    #        slope = 2,
+    #        EC50  = 150,
+    #        k_s   = 0.0680):
 
         """solve the AQPC model, given parameters"""
 
     # Convert strings to numbers
 
-        time = np.arange(start=0, stop=tmax, step=0.5)
+        time = np.arange(start=0, stop=1, step=1)
 
         fT = 1 #Tfunc(T, T_min, T_max, T_opt)
         fI = 1 #Ifunc(I, I_opt)
@@ -651,19 +662,19 @@ class IBM(mesa.Model):
     # define the ODE system
         def AQPC_deriv(AQPC, t0):
             """compute the derivative of the AQPC model"""
-            X, Q, P, C = AQPC # unpack state vars
+            A, Q, P, C = AQPC # unpack state vars
 
-            fQ  = Qfunc(Q, q_min, X)
-            fQP = QPfunc(X, Q, P, q_min, q_max, k_s)
-            fC  = Cfunc(C, slope, EC50)
+            self.fQ  = Qfunc(Q, q_min, A)
+            self.fQP = QPfunc(A, Q, P, q_min, q_max, k_s)
+            self.fC  = Cfunc(C, slope, EC50)
 
-            return [((mu_max * fT * fI * fQ * fC) - m_max - D) * X,   # dA
-                  v_max * fQP * X - (m_max + D) * Q,              # dQ
-                  D * R0 - D * P + m_max * Q - (v_max * fQP * X), # dP
+            return [((mu_max * fT * fI * self.fQ * self.fC) - m_max - D) * A,   # dA
+                  v_max * self.fQP * A - (m_max + D) * Q,              # dQ
+                  D * R0 - D * P + m_max * Q - (v_max * self.fQP * A), # dP
                   C_in * D - k * C - D * C]                       # dC
 
     # solve the model
-        solution = odeint(AQPC_deriv, (2, .1, 2, 0), time)
+        solution = odeint(AQPC_deriv, [2, .1, 2, 0], time)
         solution = np.nan_to_num(solution)
     # collect data in dataframe
         model_df = pd.DataFrame({
@@ -676,19 +687,40 @@ class IBM(mesa.Model):
 
         return model_df
 
-    algea_solution = solve_AQPC(Ifunc=Ifunc, Tfunc=Tfunc, Qfunc=Qfunc, QPfunc=QPfunc, Cfunc=Cfunc)
+    #algea_solution = solve_AQPC(Ifunc=Ifunc, Tfunc=Tfunc, Qfunc=Qfunc, QPfunc=QPfunc, Cfunc=Cfunc)
 
-    def update_resource(self, solve_AQPC):
-        
+    #def update_resource(self):
         """
         Calculate resource inflow and outflow rate and update biomass
         """
 
-        algea_solution = self.solve_AQPC()
-        X = algea_solution.A
+        Xdot_out = self.kX_out * self.X # the outflow rate depends on the current biomass (the inflow rate is constant)
+        self.X = np.maximum(0, self.X + (self.Xdot_in - Xdot_out) / self.tres)
+
+    def update_resource(self):
+        
+        """
+        Calculate resource inflow and outflow rate and update biomass
+        """
+        
+        fT = 1 #Tfunc(T, T_min, T_max, T_opt)
+        fI = 1 #Ifunc(I, I_opt)
+        fQ  = self.Qfunc()
+        fQP = self.QPfunc()
+        fC  = self.Cfunc()
+
+        self.Xdot = (self.mu_max * fT * fI * fQ *fC) - (self.m_max - self.D) * self.X
+        self.X = np.maximum(0, self.X + self.Xdot/self.tres)
+        
+        self.Qdot = self.v_max * fQP * self.X - (self.m_max + self.D) * self.Q
+        self.Q = np.maximum(0, self.Q + self.Qdot/self.tres)
+
+        #self.D * self.R0 - self.D * self.P + self.m_max * self.Q 
+        self.Pdot =  - (self.v_max * fQP * self.X)
+        self.P = np.maximum(0, self.P + self.Pdot/self.tres)
 
         Xdot_out = self.kX_out * self.X # the outflow rate depends on the current biomass (the inflow rate is constant)
-        self.X = np.maximum(0, self.X + (X - Xdot_out) / self.tres)
+        self.X = np.maximum(0, self.X + (self.Xdot - Xdot_out) / self.tres)
 
     def step(self):
         """

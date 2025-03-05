@@ -522,12 +522,12 @@ class IBM(mesa.Model):
         self.num_agents = 0
         self.unique_id_count = 0
         self.t_day = 0
-        self.X = 10 #Algae
+        self.X = 2 #Algae
 
         #Algae Zustandgrößen 
-        self.Q = 10
-        self.P = 10
-        self.C = 10
+        self.Q = 0.01
+        self.P = 2
+        #self.C = 100# is C_w from DEB model
 
         # keeping track of different causes of mortality (cumulative counts)
         self.aging_mortality = 0
@@ -585,7 +585,9 @@ class IBM(mesa.Model):
         self.datacollector = mesa.DataCollector(
             model_reporters = { # on the model level
                 't_day' : 't_day', # time in days
-                'X' : 'X', # resource biomass
+                'X' : 'X', # resource i.e. Algae biomass
+                'Q': 'Q', #P content in Algae 
+                'P':'P',#external Phosphorus 
                 'N_tot' : 'num_agents', # the total number of animals
                 'M_tot' : get_M_tot,  # the total biomass
                 'aging_mortality' : 'aging_mortality',
@@ -610,9 +612,7 @@ class IBM(mesa.Model):
     Tfunc = 1 #np.vectorize(Tfunc)
 
     def Qfunc(self, Q, q_min, X): # Nutrient dependence
-
-        fract = (Q/(q_min*self.X))-1
-
+        fract = (Q/(q_min*X))-1
         return 1 - np.exp(-np.log2(fract))
     
     def QPfunc(self, A, Q, P, q_min, q_max, k_s, V_Patch): # nutrient and quota dependence
@@ -620,48 +620,8 @@ class IBM(mesa.Model):
         P_depend = P*V_Patch / (k_s + P*V_Patch)
         return Q_depend * P_depend
     
-    def Cfunc(self, C, slope, EC50): # dose-response
-        return 1 - (1 / (1 + np.exp(-slope * (np.log(C) - np.log(EC50)) )))
-    '''
-    def solve_AQPC(self):
-
-        """solve the AQPC model, given parameters"""
-
-    # Convert strings to numbers
-
-        time = np.arange(start=0, stop=1, step=0.5)
-
-        fT = 1 #Tfunc(T, T_min, T_max, T_opt)
-        fI = 1 #Ifunc(I, I_opt)
-
-    # define the ODE system
-        def AQPC_deriv(AQPC, t0):
-            """compute the derivative of the AQPC model"""
-            X, Q, P, C = AQPC # unpack state vars
-
-            fQ  = self.Qfunc(Q, glb['q_min'], X)
-            fQP = self.QPfunc(X, Q, P, glb['q_min'], glb['q_max'], glb['k_s'], glb['V_patch'] )
-            fC  = self.Cfunc(C, glb['slope'], glb['EC50'])
-
-            return [((glb['mu_max'] * fT * fI * fQ * fC) - glb['m_max'] - glb['D']) * X,   # dA
-                  glb['v_max'] * fQP * X - (glb['m_max'] + glb['D']) * Q,              # dQ
-                  glb['D'] * glb['R0'] - glb['D'] * P + glb['m_max'] * Q - (glb['v_max'] * fQP * X), # dP
-                  glb['C_in'] * glb['D'] - glb['k'] * C - glb['D'] * C]                       # dC
-
-    # solve the model
-        solution = odeint(AQPC_deriv, (2, .1, 2, 0), time)
-        solution = np.nan_to_num(solution)
-    # collect data in dataframe
-        model_df = pd.DataFrame({
-      'tday': time, # time in days
-      'A': solution[:,0],   # population density
-      'Q': solution[:,1],   # nutrient quota
-      'P': solution[:,2],   # (external) phosphorus
-      'C': solution[:,3]    # toxicant concentration
-    })
-
-        return model_df
-    '''
+    def Cfunc(self, C_w, slope, EC50): # dose-response
+        return (1 / (1 +  (C_w / EC50)**slope ))
 
     #algea_solution = self.solve_AQPC(Ifunc=Ifunc, Tfunc=Tfunc, Qfunc=Qfunc, QPfunc=QPfunc, Cfunc=Cfunc)
 
@@ -675,24 +635,24 @@ class IBM(mesa.Model):
 
         fQ  = self.Qfunc(self.Q, glb['q_min'], self.X)
         fQP = self.QPfunc(self.X, self.Q, self.P, glb['q_min'], glb['q_max'], glb['k_s'], glb['V_patch'] )
-        fC  = self.Cfunc(self.C, glb['slope'], glb['EC50'])
+        fC  = self.Cfunc(glb['C_W'], glb['slope'], glb['EC50'])
 
         #algea_solution = self.solve_AQPC()
         self.Xdot = (glb['mu_max'] * self.fT * self.fI * fQ * fC) - (glb['m_max'] - glb['D']) * self.X #Xdot = A 
-        self.X = self.X + self.Xdot / self.tres
+        self.X = np.maximum(0, self.X + self.Xdot / self.tres) 
 
         self.Qdot =  glb['v_max'] * fQP * self.X - (glb['m_max'] + glb['D']) * self.Q
-        self.Q = self.Q + self.Qdot/self.tres 
+        self.Q = np.maximum(0, self.Q + self.Qdot/self.tres )
 
         self.Pdot = glb['D'] * glb['R0'] - glb['D'] * self.P + glb['m_max'] * self.Q - (glb['v_max'] * fQP * self.X)   
-        self.P = self.P + self.Pdot/self.tres 
+        self.P = np.maximum(0, self.P + self.Pdot/self.tres )
 
-        self.Cdot = glb['C_in'] * glb['D'] - glb['k'] * self.C - glb['D'] * self.C
-        self.C = self.C + self.Cdot/self.tres 
+        #self.Cdot = glb['C_in'] * glb['D'] - glb['k'] * self.C_W - glb['D'] * self.C_W
+        #self.C = self.C + self.Cdot/self.tres 
 
 
-        self.Xdot_out = self.kX_out * self.X # the outflow rate depends on the current biomass (the inflow rate is constant)
-        self.X = np.maximum(0, self.X + (self.X - self.Xdot_out) / self.tres)
+        #self.Xdot_out = self.kX_out * self.X # the outflow rate depends on the current biomass (the inflow rate is constant)
+        #self.X = np.maximum(0, self.X + (self.X - self.Xdot_out) / self.tres)
 
     def step(self):
         """

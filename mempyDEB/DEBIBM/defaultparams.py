@@ -21,7 +21,6 @@ defaultparams_DEBIBM = Params(
     'C_W' : 0., # chemical stressor concentration
 
     # algea parameters
-    'tmax' : 30, # max time
     'D'    : 0.5, # dilution rate
     'T'     : 24,  # temperature
     'T_min' : 0,  # minimum temperature

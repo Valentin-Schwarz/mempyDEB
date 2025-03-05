@@ -46,7 +46,7 @@ glb = { # global parameters
     'tspan' : (0,365),
     'tres' : 24, # temporal resolution (timesteps per day)
     'N_0' : 10, # initial population size
-    'data_collection_interval' : 3.5, # intervals at which data is collected (days)
+    'data_collection_interval' : 1/24, # intervals at which data is collected (days)
     'collect_agent_data' : True, # whether to collect agent-level data or not
     'replicates' : 3, # run replicates of the simulation
 
@@ -647,12 +647,6 @@ class IBM(mesa.Model):
         self.Pdot = glb['D'] * glb['R0'] - glb['D'] * self.P + glb['m_max'] * self.Q - (glb['v_max'] * fQP * self.X)   
         self.P = np.maximum(0, self.P + self.Pdot/self.tres )
 
-        #self.Cdot = glb['C_in'] * glb['D'] - glb['k'] * self.C_W - glb['D'] * self.C_W
-        #self.C = self.C + self.Cdot/self.tres 
-
-
-        #self.Xdot_out = self.kX_out * self.X # the outflow rate depends on the current biomass (the inflow rate is constant)
-        #self.X = np.maximum(0, self.X + (self.X - self.Xdot_out) / self.tres)
 
     def step(self):
         """

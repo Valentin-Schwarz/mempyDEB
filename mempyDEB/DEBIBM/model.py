@@ -52,7 +52,7 @@ glb = { # global parameters
 
     # Environmental parameters
     'V_patch':  0.5, # volume of a single patch
-    'Xdot_in': 1250, # resource input rate
+    'Pdot_in': 1250, # resource input rate
     'kX_out' : 0.1, # daily resource outflow rate
     'C_W' : 0., # chemical stressor concentration
 
@@ -75,7 +75,10 @@ glb = { # global parameters
     'q_max' : 0.0144,
     'slope' : 2,
     'EC50'  : 150,
-    'k_s'   : 0.0680 
+    'k_s'   : 0.0680,
+    'X0'    : 2,
+    'Q0'    : 0.1,
+    'P0'    : 2,
 
     }
 
@@ -515,18 +518,19 @@ class IBM(mesa.Model):
             setattr(self, key, val)
 
 
-    def init_statevars(self):
+    def init_statevars(self, X0, Q0, P0):
         """
         Initialize model-level state variables
         """
+        
         self.num_agents = 0
         self.unique_id_count = 0
         self.t_day = 0
-        self.X = 2 #Algae
+        self.X = X0
 
         #Algae Zustandgrößen 
-        self.Q = 0.1
-        self.P = 2
+        self.Q = Q0
+        self.P = P0
         #self.C = 100# is C_w from DEB model
 
         # keeping track of different causes of mortality (cumulative counts)
@@ -539,7 +543,7 @@ class IBM(mesa.Model):
         Initialization of the model object.
         """
         
-        self.init_statevars()
+        self.init_statevars(glb['X0'], glb['Q0'], glb['P0'])
  
         self.schedule = mesa.time.RandomActivation(self)
         self.assign_params(glb)
@@ -644,7 +648,7 @@ class IBM(mesa.Model):
         self.Qdot =  self.v_max * fQP * self.X - (self.m_max + self.D) * self.Q
         self.Q = np.maximum(0, self.Q + self.Qdot/self.tres )
 
-        self.Pdot = self.D * self.R0 - self.D * self.P + self.m_max * self.Q - (self.v_max * fQP * self.X)   
+        self.Pdot = self.Pdot_in - self.D * self.P + self.m_max * self.Q - (self.v_max * fQP * self.X)   
         self.P = np.maximum(0, self.P + self.Pdot/self.tres )
 
         

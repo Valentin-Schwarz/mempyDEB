@@ -642,7 +642,7 @@ class IBM(mesa.Model):
         fQP = self.QPfunc()
         fC  = self.Cfunc()
 
-        #algea_solution = self.solve_AQPC()
+        # state variables of the algea model
         self.Xdot = (self.mu_max * self.fT * self.fI * fQ * fC - self.m_max - self.D) * self.X #Xdot = A 
         self.X = np.maximum(0, self.X + self.Xdot / self.tres) 
 

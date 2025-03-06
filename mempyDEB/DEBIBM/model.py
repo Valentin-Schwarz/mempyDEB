@@ -527,7 +527,6 @@ class IBM(mesa.Model):
         #Algae Zustandgrößen 
         self.Q = 0.1
         self.P = 2
-        self.QX = self.Q/self.X
         #self.C = 100# is C_w from DEB model
 
         # keeping track of different causes of mortality (cumulative counts)
@@ -589,7 +588,6 @@ class IBM(mesa.Model):
                 'X' : 'X', # resource i.e. Algae biomass
                 'Q': 'Q', #P content in Algae 
                 'P':'P',#external Phosphorus 
-                'QX' : 'QX',
                 'N_tot' : 'num_agents', # the total number of animals
                 'M_tot' : get_M_tot,  # the total biomass
                 'aging_mortality' : 'aging_mortality',
@@ -613,9 +611,8 @@ class IBM(mesa.Model):
         return np.exp(-2.3*np.power((T-T_opt)/(T_x-T_opt), 2))
     Tfunc = 1 #np.vectorize(Tfunc)
 
-    def Qfunc(self): # Nutrient dependence
-
-        fract = (self.Q/(self.q_min*self.X))-1
+    def Qfunc(self, Q, q_min, X): # Nutrient dependence
+        fract = (Q/(q_min*X))-1
         return 1 - np.exp(-np.log2(fract))
     
     def QPfunc(self, A, Q, P, q_min, q_max, k_s, V_Patch): # nutrient and quota dependence
@@ -623,8 +620,8 @@ class IBM(mesa.Model):
         P_depend = (P/(V_Patch*1000) ) / (k_s + P/(V_Patch*1000))
         return Q_depend * P_depend
     
-    def Cfunc(self): # dose-response
-        return (1 / (1 +  (self.C_W / self.EC50)**self.slope ))
+    def Cfunc(self, C_w, slope, EC50): # dose-response
+        return (1 / (1 +  (C_w / EC50)**slope ))
 
     #algea_solution = self.solve_AQPC(Ifunc=Ifunc, Tfunc=Tfunc, Qfunc=Qfunc, QPfunc=QPfunc, Cfunc=Cfunc)
 
@@ -636,9 +633,9 @@ class IBM(mesa.Model):
         self.fT = 1 #Tfunc(T, T_min, T_max, T_opt)
         self.fI = 1 #Ifunc(I, I_opt)
 
-        fQ  = self.Qfunc()
-        fQP = self.QPfunc()
-        fC  = self.Cfunc()
+        fQ  = self.Qfunc(self.Q, glb['q_min'], self.X)
+        fQP = self.QPfunc(self.X, self.Q, self.P, glb['q_min'], glb['q_max'], glb['k_s'], glb['V_patch'] )
+        fC  = self.Cfunc(glb['C_W'], glb['slope'], glb['EC50'])
 
         #algea_solution = self.solve_AQPC()
         self.Xdot = (glb['mu_max'] * self.fT * self.fI * fQ * fC - glb['m_max'] - glb['D']) * self.X #Xdot = A 

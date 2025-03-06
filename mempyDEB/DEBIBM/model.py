@@ -46,7 +46,7 @@ glb = { # global parameters
     'tspan' : (0,365),
     'tres' : 24, # temporal resolution (timesteps per day)
     'N_0' : 10, # initial population size
-    'data_collection_interval' : 3.5, # intervals at which data is collected (days)
+    'data_collection_interval' : 1/24, # intervals at which data is collected (days)
     'collect_agent_data' : True, # whether to collect agent-level data or not
     'replicates' : 3, # run replicates of the simulation
 
@@ -525,7 +525,7 @@ class IBM(mesa.Model):
         self.X = 2 #Algae
 
         #Algae Zustandgrößen 
-        self.Q = 0.01
+        self.Q = 0.1
         self.P = 2
         self.QX = self.Q/self.X
         #self.C = 100# is C_w from DEB model
@@ -618,9 +618,9 @@ class IBM(mesa.Model):
         fract = (self.Q/(self.q_min*self.X))-1
         return 1 - np.exp(-np.log2(fract))
     
-    def QPfunc(self): # nutrient and quota dependence
-        Q_depend = (self.q_max * self.X - self.Q) / (self.q_max - self.q_min)
-        P_depend = self.P*self.V_patch / (self.k_s + self.P*self.V_patch)
+    def QPfunc(self, A, Q, P, q_min, q_max, k_s, V_Patch): # nutrient and quota dependence
+        Q_depend = (q_max * A - Q) / (q_max - q_min)
+        P_depend = (P/(V_Patch*1000) ) / (k_s + P/(V_Patch*1000))
         return Q_depend * P_depend
     
     def Cfunc(self): # dose-response
@@ -641,7 +641,7 @@ class IBM(mesa.Model):
         fC  = self.Cfunc()
 
         #algea_solution = self.solve_AQPC()
-        self.Xdot = ((glb['mu_max'] * self.fT * self.fI * fQ * fC) - glb['m_max'] - glb['D']) * self.X #Xdot = A 
+        self.Xdot = (glb['mu_max'] * self.fT * self.fI * fQ * fC - glb['m_max'] - glb['D']) * self.X #Xdot = A 
         self.X = np.maximum(0, self.X + self.Xdot / self.tres) 
 
         self.Qdot =  glb['v_max'] * fQP * self.X - (glb['m_max'] + glb['D']) * self.Q
@@ -650,14 +650,6 @@ class IBM(mesa.Model):
         self.Pdot = glb['D'] * glb['R0'] - glb['D'] * self.P + glb['m_max'] * self.Q - (glb['v_max'] * fQP * self.X)   
         self.P = np.maximum(0, self.P + self.Pdot/self.tres )
 
-        self.QX = self.Q/self.X
-
-        #self.Cdot = glb['C_in'] * glb['D'] - glb['k'] * self.C_W - glb['D'] * self.C_W
-        #self.C = self.C + self.Cdot/self.tres 
-
-
-        #self.Xdot_out = self.kX_out * self.X # the outflow rate depends on the current biomass (the inflow rate is constant)
-        #self.X = np.maximum(0, self.X + (self.X - self.Xdot_out) / self.tres)
 
     def step(self):
         """

@@ -14,6 +14,8 @@ defaultparams_DEBIBM = Params(
     'collect_agent_data' : True, # whether to collect agent-level data or not
     'replicates' : 3, # run replicates of the simulation
 
+    'temp_light': False, #ob das Model Licht und Temperatur berücksichtigt 
+
     # Environmental parameters
     'V_patch':  0.5, # volume of a single patch
     'Pdot_in': 1250, # resource input rate
@@ -23,13 +25,13 @@ defaultparams_DEBIBM = Params(
 
     # algea parameters
     'D'    : 0.5, # dilution rate
-    'T'     : 24,  # temperature
+    'T'     : 15,  # temperature
     'T_min' : 0,  # minimum temperature
     'T_max' : 35,  # maximum temperature
     'T_opt' : 27, # optimum temperature
     'R0'    : 0.36, # nutrient concentration in culture medium
     'C_in'  : 0.0, # toxicant concentration in fresh medium
-    'I'     : 100, # light intensity
+    'I'     : 90, # light intensity
     'I_opt' : 120,
     'mu_max' : 1.7380, # max. growth rate
     'm_max'  : 0.0500, # max. mortality rate

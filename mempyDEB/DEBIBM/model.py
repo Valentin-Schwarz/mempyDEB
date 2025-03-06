@@ -50,6 +50,8 @@ glb = { # global parameters
     'collect_agent_data' : True, # whether to collect agent-level data or not
     'replicates' : 3, # run replicates of the simulation
 
+    'temp_light': False,
+
     # Environmental parameters
     'V_patch':  0.5, # volume of a single patch
     'Pdot_in': 1250, # resource input rate
@@ -602,18 +604,16 @@ class IBM(mesa.Model):
         )
     
     
-        
-
-    def Ifunc(self, I, I_opt): # Lichtintensitätsabhängigkeit der Algen
-        return (I/I_opt)*np.exp(1-(I/I_opt))
+    def Ifunc(self): # Lichtintensitätsabhängigkeit der Algen
+        return (self.I/self.I_opt)*np.exp(1-(self.I/self.I_opt))
     
-    def Tfunc(self, T, T_min, T_max, T_opt): # Temperaturabhängigkeit der Algen
-        if T < T_opt:
-            T_x = T_min
+    def Tfunc(self): # Temperaturabhängigkeit der Algen
+        if self.T < self.T_opt:
+            T_x = self.T_min
         else:
-            T_x = T_max
-        return np.exp(-2.3*np.power((T-T_opt)/(T_x-T_opt), 2))
-    Tfunc = 1 #np.vectorize(Tfunc)
+            T_x = self.T_max
+        return np.exp(-2.3*np.power((self.T-self.T_opt)/(T_x-self.T_opt), 2))
+    #Tfunc = np.vectorize(Tfunc)
 
     def Qfunc(self): # Nutrient dependence
         fract = (self.Q/(self.q_min*self.X))-1
@@ -627,22 +627,27 @@ class IBM(mesa.Model):
     def Cfunc(self): # dose-response
         return (1 / (1 +  (self.C_W / self.EC50)**self.slope ))
 
-    #algea_solution = self.solve_AQPC(Ifunc=Ifunc, Tfunc=Tfunc, Qfunc=Qfunc, QPfunc=QPfunc, Cfunc=Cfunc)
 
     def update_resource(self):
         
         """
         Calculate resource inflow and outflow rate and update biomass
         """
-        self.fT = 1 #Tfunc(T, T_min, T_max, T_opt)
-        self.fI = 1 #Ifunc(I, I_opt)
-
+             
         fQ  = self.Qfunc()
         fQP = self.QPfunc()
         fC  = self.Cfunc()
 
+        if self.temp_light == True: 
+            fT = self.Tfunc()
+            fI = self.Ifunc()
+            self.Xdot = (self.mu_max * fT * fI * fQ * fC - self.m_max - self.D) * self.X #Xdot = A
+        elif self.temp_light == False: 
+            self.fT = 1 #Tfunc(T, T_min, T_max, T_opt)
+            self.fI = 1 #Ifunc(I, I_opt)
+            self.Xdot = (self.mu_max * self.fT * self.fI * fQ * fC - self.m_max - self.D) * self.X #Xdot = A
+            
         # state variables of the algea model
-        self.Xdot = (self.mu_max * self.fT * self.fI * fQ * fC - self.m_max - self.D) * self.X #Xdot = A 
         self.X = np.maximum(0, self.X + self.Xdot / self.tres) 
 
         self.Qdot =  self.v_max * fQP * self.X - (self.m_max + self.D) * self.Q

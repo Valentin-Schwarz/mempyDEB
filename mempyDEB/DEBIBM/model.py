@@ -611,17 +611,17 @@ class IBM(mesa.Model):
         return np.exp(-2.3*np.power((T-T_opt)/(T_x-T_opt), 2))
     Tfunc = 1 #np.vectorize(Tfunc)
 
-    def Qfunc(self, Q, q_min, X): # Nutrient dependence
-        fract = (Q/(q_min*X))-1
+    def Qfunc(self): # Nutrient dependence
+        fract = (self.Q/(self.q_min*self.X))-1
         return 1 - np.exp(-np.log2(fract))
     
-    def QPfunc(self, A, Q, P, q_min, q_max, k_s, V_Patch): # nutrient and quota dependence
-        Q_depend = (q_max * A - Q) / (q_max - q_min)
-        P_depend = (P/(V_Patch*1000) ) / (k_s + P/(V_Patch*1000))
+    def QPfunc(self): # nutrient and quota dependence
+        Q_depend = (self.q_max * self.X - self.Q) / (self.q_max - self.q_min)
+        P_depend = (self.P/(self.V_patch*1000) ) / (self.k_s + self.P/(self.V_patch*1000))
         return Q_depend * P_depend
     
-    def Cfunc(self, C_w, slope, EC50): # dose-response
-        return (1 / (1 +  (C_w / EC50)**slope ))
+    def Cfunc(self): # dose-response
+        return (1 / (1 +  (self.C_W / self.EC50)**self.slope ))
 
     #algea_solution = self.solve_AQPC(Ifunc=Ifunc, Tfunc=Tfunc, Qfunc=Qfunc, QPfunc=QPfunc, Cfunc=Cfunc)
 
@@ -633,19 +633,21 @@ class IBM(mesa.Model):
         self.fT = 1 #Tfunc(T, T_min, T_max, T_opt)
         self.fI = 1 #Ifunc(I, I_opt)
 
-        fQ  = self.Qfunc(self.Q, glb['q_min'], self.X)
-        fQP = self.QPfunc(self.X, self.Q, self.P, glb['q_min'], glb['q_max'], glb['k_s'], glb['V_patch'] )
-        fC  = self.Cfunc(glb['C_W'], glb['slope'], glb['EC50'])
+        fQ  = self.Qfunc()
+        fQP = self.QPfunc()
+        fC  = self.Cfunc()
 
         #algea_solution = self.solve_AQPC()
-        self.Xdot = (glb['mu_max'] * self.fT * self.fI * fQ * fC - glb['m_max'] - glb['D']) * self.X #Xdot = A 
+        self.Xdot = (self.mu_max * self.fT * self.fI * fQ * fC - self.m_max - self.D) * self.X #Xdot = A 
         self.X = np.maximum(0, self.X + self.Xdot / self.tres) 
 
-        self.Qdot =  glb['v_max'] * fQP * self.X - (glb['m_max'] + glb['D']) * self.Q
+        self.Qdot =  self.v_max * fQP * self.X - (self.m_max + self.D) * self.Q
         self.Q = np.maximum(0, self.Q + self.Qdot/self.tres )
 
-        self.Pdot = glb['D'] * glb['R0'] - glb['D'] * self.P + glb['m_max'] * self.Q - (glb['v_max'] * fQP * self.X)   
+        self.Pdot = self.D * self.R0 - self.D * self.P + self.m_max * self.Q - (self.v_max * fQP * self.X)   
         self.P = np.maximum(0, self.P + self.Pdot/self.tres )
+
+        
 
 
     def step(self):

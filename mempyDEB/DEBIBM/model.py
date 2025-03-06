@@ -633,18 +633,18 @@ class IBM(mesa.Model):
         self.fT = 1 #Tfunc(T, T_min, T_max, T_opt)
         self.fI = 1 #Ifunc(I, I_opt)
 
-        fQ  = self.Qfunc(self.Q, glb['q_min'], self.X)
-        fQP = self.QPfunc(self.X, self.Q, self.P, glb['q_min'], glb['q_max'], glb['k_s'], glb['V_patch'] )
-        fC  = self.Cfunc(glb['C_W'], glb['slope'], glb['EC50'])
+        fQ  = self.Qfunc(self.Q, self.q_min, self.X)
+        fQP = self.QPfunc(self.X, self.Q, self.P, self.q_min, self.q_max, self.k_s, self.V_patch )
+        fC  = self.Cfunc(self.C_W, self.slope, self.EC50)
 
         #algea_solution = self.solve_AQPC()
-        self.Xdot = (glb['mu_max'] * self.fT * self.fI * fQ * fC - glb['m_max'] - glb['D']) * self.X #Xdot = A 
+        self.Xdot = (self.mu_max * self.fT * self.fI * fQ * fC - self.m_max - self.D) * self.X #Xdot = A 
         self.X = np.maximum(0, self.X + self.Xdot / self.tres) 
 
-        self.Qdot =  glb['v_max'] * fQP * self.X - (glb['m_max'] + glb['D']) * self.Q
+        self.Qdot =  self.v_max * fQP * self.X - (self.m_max + self.D) * self.Q
         self.Q = np.maximum(0, self.Q + self.Qdot/self.tres )
 
-        self.Pdot = glb['D'] * glb['R0'] - glb['D'] * self.P + glb['m_max'] * self.Q - (glb['v_max'] * fQP * self.X)   
+        self.Pdot = self.D * self.R0 - self.D * self.P + self.m_max * self.Q - (self.v_max * fQP * self.X)   
         self.P = np.maximum(0, self.P + self.Pdot/self.tres )
 
 

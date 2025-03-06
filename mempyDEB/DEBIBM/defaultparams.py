@@ -19,6 +19,7 @@ defaultparams_DEBIBM = Params(
     'Xdot_in': 1250, # resource input rate
     'kX_out' : 0.1, # daily resource outflow rate
     'C_W' : 0., # chemical stressor concentration
+    #'P_in':0.02, #constant inflow of phosphorus
 
     # algea parameters
     'D'    : 0.5, # dilution rate

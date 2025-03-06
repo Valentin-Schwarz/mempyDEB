@@ -55,6 +55,7 @@ glb = { # global parameters
     'Xdot_in': 1250, # resource input rate
     'kX_out' : 0.1, # daily resource outflow rate
     'C_W' : 0., # chemical stressor concentration
+    'P_in':1,
 
     # algea parameters
 
@@ -645,7 +646,7 @@ class IBM(mesa.Model):
         self.Q = np.maximum(0, self.Q + self.Qdot/self.tres )
 
         self.Pdot = self.D * self.R0 - self.D * self.P + self.m_max * self.Q - (self.v_max * fQP * self.X)   
-        self.P = np.maximum(0, self.P + self.Pdot/self.tres )
+        self.P = np.maximum(0, self.P  + self.Pdot/self.tres )
 
 
     def step(self):

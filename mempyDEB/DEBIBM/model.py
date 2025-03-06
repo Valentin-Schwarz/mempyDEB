@@ -52,7 +52,7 @@ glb = { # global parameters
 
     # Environmental parameters
     'V_patch':  0.5, # volume of a single patch
-    'Xdot_in': 1250, # resource input rate
+    'Pdot_in': 1250, # resource input rate
     'kX_out' : 0.1, # daily resource outflow rate
     'C_W' : 0., # chemical stressor concentration
     'P_in':1,
@@ -76,7 +76,10 @@ glb = { # global parameters
     'q_max' : 0.0144,
     'slope' : 2,
     'EC50'  : 150,
-    'k_s'   : 0.0680 
+    'k_s'   : 0.0680,
+    'X0'    : 2,
+    'Q0'    : 0.1,
+    'P0'    : 2,
 
     }
 
@@ -516,18 +519,19 @@ class IBM(mesa.Model):
             setattr(self, key, val)
 
 
-    def init_statevars(self):
+    def init_statevars(self, X0, Q0, P0):
         """
         Initialize model-level state variables
         """
+        
         self.num_agents = 0
         self.unique_id_count = 0
         self.t_day = 0
-        self.X = 2 #Algae
+        self.X = X0
 
         #Algae Zustandgrößen 
-        self.Q = 0.1
-        self.P = 2
+        self.Q = Q0
+        self.P = P0
         #self.C = 100# is C_w from DEB model
 
         # keeping track of different causes of mortality (cumulative counts)
@@ -540,7 +544,7 @@ class IBM(mesa.Model):
         Initialization of the model object.
         """
         
-        self.init_statevars()
+        self.init_statevars(glb['X0'], glb['Q0'], glb['P0'])
  
         self.schedule = mesa.time.RandomActivation(self)
         self.assign_params(glb)
@@ -612,17 +616,17 @@ class IBM(mesa.Model):
         return np.exp(-2.3*np.power((T-T_opt)/(T_x-T_opt), 2))
     Tfunc = 1 #np.vectorize(Tfunc)
 
-    def Qfunc(self, Q, q_min, X): # Nutrient dependence
-        fract = (Q/(q_min*X))-1
+    def Qfunc(self): # Nutrient dependence
+        fract = (self.Q/(self.q_min*self.X))-1
         return 1 - np.exp(-np.log2(fract))
     
-    def QPfunc(self, A, Q, P, q_min, q_max, k_s, V_Patch): # nutrient and quota dependence
-        Q_depend = (q_max * A - Q) / (q_max - q_min)
-        P_depend = (P/(V_Patch*1000) ) / (k_s + P/(V_Patch*1000))
+    def QPfunc(self): # nutrient and quota dependence
+        Q_depend = (self.q_max * self.X - self.Q) / (self.q_max - self.q_min)
+        P_depend = (self.P/(self.V_patch*1000) ) / (self.k_s + self.P/(self.V_patch*1000))
         return Q_depend * P_depend
     
-    def Cfunc(self, C_w, slope, EC50): # dose-response
-        return (1 / (1 +  (C_w / EC50)**slope ))
+    def Cfunc(self): # dose-response
+        return (1 / (1 +  (self.C_W / self.EC50)**self.slope ))
 
     #algea_solution = self.solve_AQPC(Ifunc=Ifunc, Tfunc=Tfunc, Qfunc=Qfunc, QPfunc=QPfunc, Cfunc=Cfunc)
 
@@ -634,9 +638,9 @@ class IBM(mesa.Model):
         self.fT = 1 #Tfunc(T, T_min, T_max, T_opt)
         self.fI = 1 #Ifunc(I, I_opt)
 
-        fQ  = self.Qfunc(self.Q, self.q_min, self.X)
-        fQP = self.QPfunc(self.X, self.Q, self.P, self.q_min, self.q_max, self.k_s, self.V_patch )
-        fC  = self.Cfunc(self.C_W, self.slope, self.EC50)
+        fQ  = self.Qfunc()
+        fQP = self.QPfunc()
+        fC  = self.Cfunc()
 
         #algea_solution = self.solve_AQPC()
         self.Xdot = (self.mu_max * self.fT * self.fI * fQ * fC - self.m_max - self.D) * self.X #Xdot = A 
@@ -645,8 +649,10 @@ class IBM(mesa.Model):
         self.Qdot =  self.v_max * fQP * self.X - (self.m_max + self.D) * self.Q
         self.Q = np.maximum(0, self.Q + self.Qdot/self.tres )
 
-        self.Pdot = self.D * self.R0 - self.D * self.P + self.m_max * self.Q - (self.v_max * fQP * self.X)   
-        self.P = np.maximum(0, self.P  + self.Pdot/self.tres )
+        self.Pdot = self.Pdot_in - self.D * self.P + self.m_max * self.Q - (self.v_max * fQP * self.X)   
+        self.P = np.maximum(0, self.P + self.Pdot/self.tres )
+
+        
 
 
     def step(self):

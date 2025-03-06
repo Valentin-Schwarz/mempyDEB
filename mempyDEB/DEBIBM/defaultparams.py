@@ -16,7 +16,7 @@ defaultparams_DEBIBM = Params(
 
     # Environmental parameters
     'V_patch':  0.5, # volume of a single patch
-    'Xdot_in': 1250, # resource input rate
+    'Pdot_in': 1250, # resource input rate
     'kX_out' : 0.1, # daily resource outflow rate
     'C_W' : 0., # chemical stressor concentration
     #'P_in':0.02, #constant inflow of phosphorus
@@ -39,7 +39,11 @@ defaultparams_DEBIBM = Params(
     'q_max' : 0.0144,
     'slope' : 2,
     'EC50'  : 150,
-    'k_s'   : 0.0680  
+    'k_s'   : 0.0680,
+    'X0'    : 2,
+    'Q0'    : 0.1,
+    'P0'    : 2,
+
     },
     
     { # animal parameters

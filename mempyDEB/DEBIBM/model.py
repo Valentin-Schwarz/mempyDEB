@@ -527,6 +527,7 @@ class IBM(mesa.Model):
         #Algae Zustandgrößen 
         self.Q = 0.01
         self.P = 2
+        self.QX = self.Q/self.X
         #self.C = 100# is C_w from DEB model
 
         # keeping track of different causes of mortality (cumulative counts)
@@ -588,6 +589,7 @@ class IBM(mesa.Model):
                 'X' : 'X', # resource i.e. Algae biomass
                 'Q': 'Q', #P content in Algae 
                 'P':'P',#external Phosphorus 
+                'QX' : 'QX',
                 'N_tot' : 'num_agents', # the total number of animals
                 'M_tot' : get_M_tot,  # the total biomass
                 'aging_mortality' : 'aging_mortality',
@@ -639,7 +641,7 @@ class IBM(mesa.Model):
         fC  = self.Cfunc()
 
         #algea_solution = self.solve_AQPC()
-        self.Xdot = (glb['mu_max'] * self.fT * self.fI * fQ * fC) - (glb['m_max'] - glb['D']) * self.X #Xdot = A 
+        self.Xdot = ((glb['mu_max'] * self.fT * self.fI * fQ * fC) - glb['m_max'] - glb['D']) * self.X #Xdot = A 
         self.X = np.maximum(0, self.X + self.Xdot / self.tres) 
 
         self.Qdot =  glb['v_max'] * fQP * self.X - (glb['m_max'] + glb['D']) * self.Q
@@ -647,6 +649,8 @@ class IBM(mesa.Model):
 
         self.Pdot = glb['D'] * glb['R0'] - glb['D'] * self.P + glb['m_max'] * self.Q - (glb['v_max'] * fQP * self.X)   
         self.P = np.maximum(0, self.P + self.Pdot/self.tres )
+
+        self.QX = self.Q/self.X
 
         #self.Cdot = glb['C_in'] * glb['D'] - glb['k'] * self.C_W - glb['D'] * self.C_W
         #self.C = self.C + self.Cdot/self.tres 

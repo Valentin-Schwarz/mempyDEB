@@ -314,7 +314,6 @@ class Animal(mesa.Agent):
         """
         Toxicokinetics: Calculate change in scaled damage
         """
-
         self.D_h = self.D_h + (self.kD_h * (self.model.C_W - self.D_h)) / self.model.tres
         self.D_j = self.D_j + (self.kD_j * (self.model.C_W - self.D_j)) / self.model.tres
 

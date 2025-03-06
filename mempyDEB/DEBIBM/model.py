@@ -525,7 +525,7 @@ class IBM(mesa.Model):
         self.X = 2 #Algae
 
         #Algae Zustandgrößen 
-        self.Q = 0.01
+        self.Q = 0.1
         self.P = 2
         #self.C = 100# is C_w from DEB model
 
@@ -617,7 +617,7 @@ class IBM(mesa.Model):
     
     def QPfunc(self, A, Q, P, q_min, q_max, k_s, V_Patch): # nutrient and quota dependence
         Q_depend = (q_max * A - Q) / (q_max - q_min)
-        P_depend = P*V_Patch / (k_s + P*V_Patch)
+        P_depend = (P/(V_Patch*1000) ) / (k_s + P/(V_Patch*1000))
         return Q_depend * P_depend
     
     def Cfunc(self, C_w, slope, EC50): # dose-response
@@ -638,7 +638,7 @@ class IBM(mesa.Model):
         fC  = self.Cfunc(glb['C_W'], glb['slope'], glb['EC50'])
 
         #algea_solution = self.solve_AQPC()
-        self.Xdot = (glb['mu_max'] * self.fT * self.fI * fQ * fC) - (glb['m_max'] - glb['D']) * self.X #Xdot = A 
+        self.Xdot = (glb['mu_max'] * self.fT * self.fI * fQ * fC - glb['m_max'] - glb['D']) * self.X #Xdot = A 
         self.X = np.maximum(0, self.X + self.Xdot / self.tres) 
 
         self.Qdot =  glb['v_max'] * fQP * self.X - (glb['m_max'] + glb['D']) * self.Q
